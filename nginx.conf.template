@@ -1,0 +1,13 @@
+server {
+    listen ${FRONTEND_PORT};
+    root /usr/share/nginx/html;
+    proxy_ssl_server_name on;
+    proxy_ssl_verify on;
+    proxy_ssl_trusted_certificate /etc/ssl/certs/ca-certificates.crt;
+    proxy_ssl_verify_depth 3;
+    location /admin/v1/ {
+        proxy_pass ${BACKEND_URL};
+    }
+    location = /health { proxy_pass ${BACKEND_URL}; }
+    location / { try_files $uri $uri/ /index.html; }
+}

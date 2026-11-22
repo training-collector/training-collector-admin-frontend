@@ -1,0 +1,16 @@
+.env
+.env.*
+*.local
+*.pem
+*.key
+*.p12
+*.jks
+*.log
+.DS_Store
+.idea/
+.vercel/
+*.iml
+node_modules/
+dist/
+.git/
+.run/

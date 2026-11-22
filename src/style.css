@@ -1,0 +1,277 @@
+@font-face {
+  font-family: Inter;
+  src: url('/inter-cyrillic.woff2') format('woff2');
+  font-weight: 100 900;
+  unicode-range: U+0400-052F;
+}
+@font-face {
+  font-family: Inter;
+  src: url('/inter-latin.woff2') format('woff2');
+  font-weight: 100 900;
+  unicode-range: U+0000-00FF;
+}
+:root {
+  font:
+    15px/1.5 Inter,
+    system-ui,
+    sans-serif;
+  color: #191a1d;
+  background: #fff;
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+}
+button,
+input,
+textarea {
+  font: inherit;
+}
+button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: white;
+  color: inherit;
+  border: 1px solid #d7d8dc;
+  padding: 8px 13px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+button:hover {
+  background: #f4f4f5;
+}
+button:disabled {
+  opacity: 0.58;
+  cursor: wait;
+}
+button.primary {
+  background: #202124;
+  color: white;
+  border-color: #202124;
+}
+button.primary:hover {
+  background: #37383c;
+}
+.shell {
+  display: grid;
+  grid-template-columns: 235px 1fr;
+  min-height: 100vh;
+}
+aside {
+  padding: 30px 18px;
+  background: #f7f7f8;
+  border-right: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  font-size: 18px;
+}
+.brand img {
+  width: 36px;
+  height: 36px;
+}
+nav {
+  display: grid;
+  gap: 4px;
+}
+nav button,
+.logout {
+  border: 0;
+  justify-content: flex-start;
+  background: transparent;
+}
+nav button[aria-current] {
+  background: #e4e5e8;
+  font-weight: 600;
+}
+.logout {
+  margin-top: auto;
+}
+.content {
+  padding: clamp(28px, 5vw, 76px);
+  max-width: 1250px;
+  width: 100%;
+  min-width: 0;
+}
+.content > header,
+dialog header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+.context,
+.status,
+.records p,
+.empty p {
+  color: #585c63;
+}
+.context {
+  font-size: 13px;
+}
+.status {
+  display: inline-block;
+  font-size: 13px;
+  background: #f1f2f3;
+  border-radius: 5px;
+  padding: 3px 8px;
+}
+h1 {
+  font-size: clamp(28px, 4vw, 44px);
+  line-height: 1.12;
+  letter-spacing: -0.045em;
+  margin: 8px 0 18px;
+}
+h2 {
+  font-size: 21px;
+  letter-spacing: -0.03em;
+}
+.records {
+  list-style: none;
+  padding: 0;
+  border-top: 1px solid #d4d5d8;
+}
+.records li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 21px 0;
+  border-bottom: 1px solid #e3e4e6;
+}
+.records li > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.records p {
+  white-space: pre-line;
+  margin: 3px 0;
+}
+.actions {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+.empty {
+  margin: 26px 0;
+  padding: 54px 24px;
+  background: #f8f8f9;
+  border: 1px solid #e2e3e6;
+  border-radius: 12px;
+  text-align: center;
+}
+.empty h2 {
+  margin: 12px 0 4px;
+}
+.empty p {
+  margin: 0;
+}
+.login {
+  max-width: 490px;
+  padding: 7vh 24px;
+  margin: auto;
+}
+.login section {
+  margin-top: 10vh;
+}
+.login h1 {
+  font-size: 34px;
+  margin-bottom: 24px;
+}
+form,
+label {
+  display: grid;
+  gap: 7px;
+}
+form {
+  gap: 20px;
+}
+label {
+  font-weight: 550;
+}
+input,
+textarea {
+  border: 1px solid #babcc1;
+  border-radius: 7px;
+  padding: 10px 12px;
+  width: 100%;
+}
+textarea {
+  resize: vertical;
+}
+:focus-visible {
+  outline: 2px solid #555b68;
+  outline-offset: 3px;
+}
+dialog {
+  border: 1px solid #dbdde0;
+  border-radius: 14px;
+  padding: 25px;
+  width: min(460px, 92vw);
+  color: inherit;
+}
+dialog::backdrop {
+  background: #11131860;
+}
+dialog header {
+  margin-bottom: 18px;
+}
+dialog h2 {
+  margin: 0;
+}
+[role='alert'] {
+  border-left: 3px solid #585c63;
+  padding: 8px 12px;
+  background: #f2f2f2;
+}
+@media (max-width: 780px) {
+  .shell {
+    grid-template-columns: 1fr;
+  }
+  aside {
+    padding: 13px 16px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    border: 0;
+    border-bottom: 1px solid #ddd;
+  }
+  nav {
+    grid-row: 2;
+    grid-column: 1/-1;
+    display: flex;
+    overflow: auto;
+  }
+  nav button {
+    white-space: nowrap;
+  }
+  .logout {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .content {
+    padding: 24px 16px;
+  }
+  .records li {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .content > header {
+    flex-wrap: wrap;
+  }
+  .brand img {
+    width: 30px;
+    height: 30px;
+  }
+}
