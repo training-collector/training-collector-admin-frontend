@@ -6,10 +6,13 @@ export interface Trainer {
   approvedAt: string | null;
   deactivatedAt: string | null;
 }
-export interface Item {
+export interface MuscleGroup {
   id: number;
   name: string;
   description?: string | null;
+}
+export interface Item extends MuscleGroup {
+  muscleGroupId?: number;
   hidden: boolean;
 }
 export type Section = 'requests' | 'trainers' | 'exercises' | 'goals';

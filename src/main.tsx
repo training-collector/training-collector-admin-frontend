@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Bell, Users, Dumbbell, Flag, LogOut, Plus, X, Inbox } from 'lucide-react';
-import { request, Unauthorized, type Trainer, type Item, type Section } from './api';
+import { Bell, Users, Dumbbell, Flag, LogOut, Plus, X, Inbox, ChevronRight, Pencil } from 'lucide-react';
+import { request, Unauthorized, type Trainer, type Item, type MuscleGroup, type Section } from './api';
 import './style.css';
 
 const sessionKey = 'training-collector.admin.session';
@@ -13,11 +13,11 @@ const sections = {
 };
 const date = (value: string) =>
   new Intl.DateTimeFormat('ru', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date(value));
-function Brand() {
+function Brand({ subtitle }: { subtitle?: string }) {
   return (
     <div className="brand">
       <img src="/training-collector.png" alt="" />
-      Training Collector
+      <span>Training Collector{subtitle && <small>{subtitle}</small>}</span>
     </div>
   );
 }
@@ -87,17 +87,31 @@ function Login({ enter, notice }: { enter: (t: string) => void; notice: string }
     </main>
   );
 }
-type Action = { kind: 'edit'; item?: Item } | { kind: 'delete' | 'deactivate'; id: number; name: string };
-function Workspace({ token, leave }: { token: string; leave: (message?: string) => void }) {
-  const [section, setSection] = useState<Section>('requests'),
-    [version, refresh] = useState(0);
-  const [rows, setRows] = useState<(Trainer | Item)[] | null>(null),
-    [action, setAction] = useState<Action>();
+type Action =
+  | { kind: 'edit'; item?: Item }
+  | { kind: 'category'; item?: MuscleGroup }
+  | { kind: 'delete' | 'deactivate'; id: number; name: string };
+function Workspace({ token, leave, section, groupId }: {
+  token: string; leave: (message?: string) => void; section: Section; groupId: number | null;
+}) {
+  const [version, refresh] = useState(0);
+  const [groups, setGroups] = useState<MuscleGroup[] | null>(null);
+  const [page, setPage] = useState<{ path: string; rows: (Trainer | Item)[] }>();
+  const [action, setAction] = useState<Action>();
   const [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [loadError, setLoadError] = useState('');
   const people = section === 'trainers' || section === 'requests';
-  const path = people ? '/trainers' : '/' + section;
+  const categories = section === 'exercises' && groupId === null;
+  const path = people ? '/trainers' : categories ? '/muscle-groups' : '/' + section;
+  const listPath = groupId === null ? path : '/muscle-groups/' + groupId + '/exercises';
+  const group = groups?.find(g => g.id === groupId);
+  const rows = page?.path === listPath ? page.rows : null;
+  useEffect(() => {
+    setAction(undefined);
+    setError('');
+    setLoadError('');
+  }, [listPath]);
   useEffect(() => {
     const controller = new AbortController();
     let loading = false;
@@ -105,9 +119,13 @@ function Workspace({ token, leave }: { token: string; leave: (message?: string) 
       if (loading) return;
       loading = true;
       try {
-        const list = await request<(Item | Trainer)[]>(path, token, 'GET', undefined, controller.signal);
+        const [list, options] = await Promise.all([
+          categories ? null : request<(Item | Trainer)[]>(listPath, token, 'GET', undefined, controller.signal),
+          section === 'exercises' ? request<MuscleGroup[]>('/muscle-groups', token, 'GET', undefined, controller.signal) : null,
+        ]);
         if (!controller.signal.aborted) {
-          setRows(list);
+          if (list) setPage({ path: listPath, rows: list });
+          if (options) setGroups(options);
           setLoadError('');
         }
       } catch (e) {
@@ -130,15 +148,7 @@ function Workspace({ token, leave }: { token: string; leave: (message?: string) 
       clearInterval(timer);
       window.removeEventListener('focus', onFocus);
     };
-  }, [path, token, version, leave]);
-  function select(next: Section) {
-    if (next === section || busy) return;
-    if (path !== (['requests', 'trainers'].includes(next) ? '/trainers' : '/' + next)) setRows(null);
-    setSection(next);
-    setError('');
-    setLoadError('');
-    setAction(undefined);
-  }
+  }, [listPath, categories, section, token, version, leave]);
   async function mutate(url: string, method: string, body?: unknown) {
     if (busy) return;
     setBusy(true);
@@ -160,12 +170,16 @@ function Workspace({ token, leave }: { token: string; leave: (message?: string) 
       )
     : [];
   const items = people ? [] : (rows as Item[] | null);
-  const noun = section === 'goals' ? 'цель' : 'упражнение';
-  const editTitle = action?.kind === 'edit' && action.item ? 'Редактировать' : 'Добавить';
+  const records = categories ? groups : people ? trainers : items;
+  const noun = categories ? 'категорию' : section === 'goals' ? 'цель' : 'упражнение';
+  function editCategory(item: MuscleGroup) {
+    setError('');
+    setAction({ kind: 'category', item });
+  }
   return (
     <div className="shell">
       <aside>
-        <Brand />
+        <Brand subtitle="Admin Panel" />
         <nav aria-label="Администрирование">
           {(Object.keys(sections) as Section[]).map((key) => {
             const { label, icon: Icon } = sections[key];
@@ -174,7 +188,7 @@ function Workspace({ token, leave }: { token: string; leave: (message?: string) 
                 key={key}
                 aria-current={key === section ? 'page' : undefined}
                 disabled={busy}
-                onClick={() => select(key)}
+                onClick={() => { window.location.hash = key; }}
               >
                 <Icon size={18} />
                 {label}
@@ -205,20 +219,28 @@ function Workspace({ token, leave }: { token: string; leave: (message?: string) 
       <main className="content">
         <header>
           <div>
-            <span className="context">Администрирование</span>
-            <h1>{sections[section].label}</h1>
+            {groupId !== null ? <a className="context" href="#exercises">← К категориям</a>
+              : <span className="context">Администрирование</span>}
+            <h1>{groupId === null ? sections[section].label : group?.name ?? (rows && groups ? 'Категория не найдена' : 'Категория')}</h1>
+            {group?.description && <p className="group-description">{group.description}</p>}
           </div>
-          {!people && (
-            <button
-              className="primary"
-              onClick={() => {
-                setError('');
-                setAction({ kind: 'edit' });
-              }}
-            >
-              <Plus size={16} />
-              Добавить {noun}
-            </button>
+          {!people && (groupId === null || group) && (
+            <div className="actions">
+              {group && <button disabled={busy} onClick={() => editCategory(group)}>
+                <Pencil size={15} aria-hidden="true" /> Изменить категорию
+              </button>}
+              <button
+                className="primary"
+                disabled={busy}
+                onClick={() => {
+                  setError('');
+                  setAction({ kind: categories ? 'category' : 'edit' });
+                }}
+              >
+                <Plus size={16} />
+                Добавить {noun}
+              </button>
+            </div>
           )}
         </header>
         {loadError && (
@@ -227,12 +249,12 @@ function Workspace({ token, leave }: { token: string; leave: (message?: string) 
           </p>
         )}
         {!action && error && <p role="alert">{error}</p>}
-        {rows === null ? (
+        {records == null ? (
           !loadError && <p role="status">Загрузка…</p>
-        ) : !(people ? trainers?.length : items?.length) ? (
+        ) : !records.length ? (
           <div className="empty">
             <Inbox size={27} />
-            <h2>{section === 'requests' ? 'Новых заявок нет' : 'Список пуст'}</h2>
+            <h2>{categories ? 'Категорий пока нет' : groupId !== null ? 'В категории пока нет упражнений' : section === 'requests' ? 'Новых заявок нет' : 'Список пуст'}</h2>
             {section === 'requests' && <p>Здесь появляются тренеры, запустившие бота авторизации.</p>}
           </div>
         ) : (
@@ -258,7 +280,10 @@ function Workspace({ token, leave }: { token: string; leave: (message?: string) 
                       ) : (
                         <>
                           {t.deactivatedAt ? (
-                            <span className="status">Деактивирован</span>
+                            <>
+                              <span className="status">Деактивирован</span>
+                              <button disabled={busy} onClick={() => mutate(path + '/' + t.id + '/activate', 'POST')}>Активировать</button>
+                            </>
                           ) : (
                             <button
                               disabled={busy}
@@ -284,7 +309,16 @@ function Workspace({ token, leave }: { token: string; leave: (message?: string) 
                     </div>
                   </li>
                 ))
-              : items?.map((item) => (
+              : categories ? groups?.map(g => <li key={g.id} className="category-row">
+                  <a className="category-link" href={'#exercises/' + g.id}>
+                    <span className="category-copy"><strong>{g.name}</strong>
+                      {g.description && <span className="category-summary">{g.description}</span>}
+                    </span>
+                    <ChevronRight size={17} aria-hidden="true" />
+                  </a>
+                  <button className="category-edit" disabled={busy} aria-label={'Изменить категорию «' + g.name + '»'}
+                    onClick={() => editCategory(g)}><Pencil size={15} aria-hidden="true" /> Изменить</button>
+                </li>) : items?.map((item) => (
                   <li key={item.id}>
                     <div>
                       <strong>{item.name}</strong>
@@ -307,6 +341,7 @@ function Workspace({ token, leave }: { token: string; leave: (message?: string) 
                           mutate(path + '/' + item.id, 'PUT', {
                             name: item.name,
                             description: item.description,
+                            muscleGroupId: item.muscleGroupId,
                             hidden: !item.hidden,
                           })
                         }
@@ -331,8 +366,8 @@ function Workspace({ token, leave }: { token: string; leave: (message?: string) 
       {action && (
         <Modal
           title={
-            action.kind === 'edit'
-              ? editTitle + ' ' + noun
+            action.kind === 'category' || action.kind === 'edit'
+              ? (action.item ? 'Редактировать ' : 'Добавить ') + (action.kind === 'category' ? 'категорию' : noun)
               : action.kind === 'delete'
                 ? 'Удалить запись?'
                 : 'Деактивировать тренера?'
@@ -344,16 +379,22 @@ function Workspace({ token, leave }: { token: string; leave: (message?: string) 
             }
           }}
         >
-          {action.kind === 'edit' ? (
+          {action.kind === 'edit' || action.kind === 'category' ? (
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 const d = new FormData(e.currentTarget);
+                const fields = { name: d.get('name'), description: d.get('description') };
+                if (action.kind === 'category') {
+                  const url = action.item ? '/muscle-groups/' + action.item.id : '/muscle-groups';
+                  void mutate(url, action.item ? 'PUT' : 'POST', fields);
+                  return;
+                }
                 const item = action.item;
                 void mutate(item ? path + '/' + item.id : path, item ? 'PUT' : 'POST', {
-                  name: d.get('name'),
-                  description: d.get('description'),
+                  ...fields,
                   hidden: item?.hidden ?? false,
+                  muscleGroupId: groupId === null ? undefined : Number(d.get('muscleGroupId') ?? groupId),
                 });
               }}
             >
@@ -363,10 +404,15 @@ function Workspace({ token, leave }: { token: string; leave: (message?: string) 
                   name="name"
                   autoFocus
                   required
-                  maxLength={section === 'goals' ? 128 : 255}
+                  maxLength={action.kind === 'category' || section === 'goals' ? 128 : 255}
                   defaultValue={action.item?.name}
                 />
               </label>
+              {action.kind === 'edit' && groupId !== null && action.item && <label>Группа мышц
+                <select name="muscleGroupId" required defaultValue={action.item.muscleGroupId}>
+                  {groups?.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
+                </select>
+              </label>}
               {section === 'exercises' && (
                 <label>
                   Описание
@@ -415,7 +461,16 @@ function Workspace({ token, leave }: { token: string; leave: (message?: string) 
     </div>
   );
 }
+function subscribeToRoute(change: () => void) {
+  window.addEventListener('hashchange', change);
+  return () => window.removeEventListener('hashchange', change);
+}
 function App() {
+  const hash = useSyncExternalStore(subscribeToRoute, () => window.location.hash);
+  const category = /^#exercises\/([1-9]\d*)$/.exec(hash);
+  const groupId = category && Number.isSafeInteger(Number(category[1])) ? Number(category[1]) : null;
+  const page = hash.slice(1);
+  const section = groupId !== null ? 'exercises' : Object.hasOwn(sections, page) ? page as Section : 'requests';
   const [token, setToken] = useState(() => sessionStorage.getItem(sessionKey) || ''),
     [notice, setNotice] = useState('');
   const leave = useCallback((msg = '') => {
@@ -424,7 +479,7 @@ function App() {
     setNotice(msg);
   }, []);
   return token ? (
-    <Workspace token={token} leave={leave} />
+    <Workspace key={section} token={token} leave={leave} section={section} groupId={groupId} />
   ) : (
     <Login
       notice={notice}

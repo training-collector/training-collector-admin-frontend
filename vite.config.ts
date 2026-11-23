@@ -6,8 +6,7 @@ export default defineConfig(({ mode }) => {
   const backend = { target, changeOrigin: true };
   return {
     server: {
-      port: Number(env.FRONTEND_PORT || 20556),
-      strictPort: true,
+      port: Number(env.FRONTEND_PORT || 5174),
       proxy: { '/admin/v1': backend, '/health': backend },
     },
   };
