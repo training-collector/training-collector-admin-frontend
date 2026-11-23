@@ -2,6 +2,7 @@ export interface Trainer {
   id: number;
   username: string | null;
   fullName: string;
+  telegramUserId: number | null;
   telegramLinkedAt: string;
   approvedAt: string | null;
   deactivatedAt: string | null;
@@ -17,6 +18,23 @@ export interface Item extends MuscleGroup {
 }
 export type Section = 'requests' | 'trainers' | 'exercises' | 'goals';
 export class Unauthorized extends Error {}
+
+/** Sends a page failure to the server log. Hosted pages leave no other trace of it. */
+let reportsLeft = 3;
+export function reportError(error: unknown, stack = '') {
+  if (reportsLeft-- <= 0) return;
+  const detail = error instanceof Error ? error.stack || '' : '';
+  void fetch('/admin/v1/client-errors', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    keepalive: true,
+    body: JSON.stringify({
+      message: String(error).slice(0, 300),
+      source: 'admin ' + window.location.hash.slice(0, 70),
+      stack: (detail + '\n' + stack).slice(0, 1500),
+    }),
+  }).catch(() => {});
+}
 export async function request<T>(
   path: string,
   token = '',

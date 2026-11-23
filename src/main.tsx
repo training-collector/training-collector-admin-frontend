@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type FormEvent, type ReactNode } from 'react';
+import { Component, useCallback, useEffect, useRef, useState, useSyncExternalStore, type ErrorInfo, type FormEvent, type ReactNode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Bell, Users, Dumbbell, Flag, LogOut, Plus, X, Inbox, ChevronRight, Pencil } from 'lucide-react';
-import { request, Unauthorized, type Trainer, type Item, type MuscleGroup, type Section } from './api';
+import { reportError, request, Unauthorized, type Trainer, type Item, type MuscleGroup, type Section } from './api';
 import './style.css';
 
 const sessionKey = 'training-collector.admin.session';
@@ -274,7 +274,10 @@ function Workspace({ token, leave, section, groupId }: {
                     <div>
                       <strong>{t.fullName}</strong>
                       <p>
-                        {t.username} · {date(t.deactivatedAt || t.approvedAt || t.telegramLinkedAt)}
+                        {t.username}
+                        {section === 'requests' && t.telegramUserId != null && ` · Telegram ID ${t.telegramUserId}`}
+                        {' · '}
+                        {date(t.deactivatedAt || t.approvedAt || t.telegramLinkedAt)}
                       </p>
                     </div>
                     <div className="actions">
@@ -327,6 +330,8 @@ function Workspace({ token, leave, section, groupId }: {
                   </a>
                   <button className="category-edit" disabled={busy} aria-label={'Изменить категорию «' + g.name + '»'}
                     onClick={() => editCategory(g)}><Pencil size={15} aria-hidden="true" /> Изменить</button>
+                  <button className="category-edit" disabled={busy} aria-label={'Удалить категорию «' + g.name + '»'}
+                    onClick={() => { setError(''); setAction({ kind: 'delete', id: g.id, name: g.name }); }}>Удалить</button>
                 </li>) : items?.map((item) => (
                   <li key={item.id}>
                     <div>
@@ -443,6 +448,7 @@ function Workspace({ token, leave, section, groupId }: {
                   ? 'Доступ в кабинет и к обоим ботам будет закрыт.'
                   : people
                     ? 'Аккаунт, подопечные, их тренировки и замеры будут удалены без возможности восстановления.'
+                    : categories ? 'Удалить можно только категорию без упражнений.'
                     : 'Запись исчезнет из справочника. Ранее записанные данные сохранятся.'}
               </p>
               {error && <p role="alert">{error}</p>}
@@ -499,4 +505,27 @@ function App() {
     />
   );
 }
-createRoot(document.getElementById('root')!).render(<App />);
+/** Shows a way out instead of a blank page when rendering fails, and reports the failure. */
+class ErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  componentDidCatch(error: unknown, info: ErrorInfo) {
+    reportError(error, info.componentStack ?? '');
+  }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <main className="login">
+        <p role="alert">Что-то пошло не так. Обновите страницу.</p>
+        <button className="primary" onClick={() => window.location.reload()}>
+          Обновить страницу
+        </button>
+      </main>
+    );
+  }
+}
+window.addEventListener('error', (event) => reportError(event.error ?? event.message));
+window.addEventListener('unhandledrejection', (event) => reportError(event.reason));
+createRoot(document.getElementById('root')!).render(<ErrorBoundary><App /></ErrorBoundary>);
