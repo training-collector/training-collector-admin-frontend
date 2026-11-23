@@ -138,14 +138,23 @@ function Workspace({ token, leave, section, groupId }: {
       }
     }
     void load();
+    let lastActivity = Date.now();
+    const interacted = () => { lastActivity = Date.now(); };
     const onFocus = () => {
+      interacted();
       if (!document.hidden) void load();
     };
-    const timer = window.setInterval(onFocus, 10000);
+    const timer = window.setInterval(() => {
+      if (!document.hidden && Date.now() - lastActivity < 5 * 60_000) void load();
+    }, 30_000);
+    window.addEventListener('pointerdown', interacted);
+    window.addEventListener('keydown', interacted);
     window.addEventListener('focus', onFocus);
     return () => {
       controller.abort();
       clearInterval(timer);
+      window.removeEventListener('pointerdown', interacted);
+      window.removeEventListener('keydown', interacted);
       window.removeEventListener('focus', onFocus);
     };
   }, [listPath, categories, section, token, version, leave]);
